@@ -35,6 +35,6 @@ jobs:
           env_vars: |
             GOOGLE_GENAI_USE_VERTEXAI=TRUE
             GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}
-            GOOGLE_CLOUD_LOCATION=${{ vars.GCP_REGION }}
+            GOOGLE_CLOUD_LOCATION=${{ vars.GEMINI_LOCATION || vars.GCP_REGION }}
             REFERENCER_MODEL=${{ vars.REFERENCER_MODEL || 'gemini-3.5-flash' }}
           flags: --no-allow-unauthenticated --max-instances=3 --memory=1Gi

@@ -52,6 +52,9 @@ DEPLOY_SA=referencer-deploy@$PROJECT.iam.gserviceaccount.com
 for r in run.admin cloudbuild.builds.editor artifactregistry.writer storage.admin iam.serviceAccountUser; do
   gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$DEPLOY_SA --role=roles/$r; done
 
+# Image repository for source deploys (the deploy account can write to it but not create it)
+gcloud artifacts repositories create cloud-run-source-deploy --repository-format=docker --location=$REGION
+
 # Let the Cloud Run runtime identity call Gemini
 RUNTIME_SA=$(gcloud projects describe $PROJECT --format='value(projectNumber)')-compute@developer.gserviceaccount.com
 gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$RUNTIME_SA --role=roles/aiplatform.user
@@ -70,6 +73,9 @@ echo "GCP_WIF_PROVIDER = $POOL/providers/repo"; echo "GCP_DEPLOY_SA = $DEPLOY_SA
 
 Then in GitHub: **Settings -> Secrets and variables -> Actions -> Variables**, add
 `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA` (and optionally `REFERENCER_MODEL`).
+Some newer Gemini models are served only from the `global` location, not regional ones. If the app returns
+`404 NOT_FOUND ... publishers/google/models/...`, test the model in each location (see below) and, if only
+`global` works, add a `GEMINI_LOCATION` variable set to `global`. Cloud Run itself stays in `GCP_REGION`.
 Merging to `main` runs the tests (`referencer-ci.yml`) and deploys (`referencer-deploy.yml`).
 
 The service deploys with `--no-allow-unauthenticated`, so only people you grant `roles/run.invoker` can
