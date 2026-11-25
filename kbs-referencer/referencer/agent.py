@@ -40,6 +40,9 @@ Workflow:
    - Authors: people as surname + initials (no full stops); organisations with acronym if one is
      well known. If the author of a web page is the organisation that publishes it, use the
      organisation as author and the acronym as publisher where the guide says so.
+   - Title is essential: look for it in citation_title / og:title / JSON-LD, the PDF metadata
+     'Title', the h1, then the first lines of the text (for a PDF, the large heading at the top
+     of page 1, above the author names). Only leave it out if it is truly not on the source.
    - Year: publication or copyright year. Pages as '255-261'.
    - Do not set 'viewed'; today's date is added automatically.
    - Always pass the URL the student gave (or the DOI URL) as 'url' for online sources.

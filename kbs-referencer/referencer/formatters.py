@@ -66,6 +66,7 @@ DEFAULT_MEDIUM = {
     "software": "software", "brochure": "flyer", "broadcast": "television broadcast",
     "film": "film",
 }
+TITLE_PLACEHOLDER = "[title not found]"
 JURISDICTIONS = {"cth", "act", "nsw", "nt", "qld", "sa", "tas", "vic", "wa"}
 
 
@@ -401,6 +402,9 @@ def format_reference(source_type: str, fields: dict, first_use: bool = True) -> 
     """Build the reference-list entry and in-text citations for one source."""
     t = (source_type or "").strip().lower().replace(" ", "_").replace("-", "_")
     f = dict(fields or {})
+    missing = missing_fields(t, f)  # computed before any placeholder is inserted
+    if _blank(f.get("title")):
+        f["title"] = TITLE_PLACEHOLDER  # never print empty quotes: make the gap impossible to miss
     entry = format_entry(t, f)
     entry_html = entry.rstrip(".") + ("" if t in {"legislation", "case_law", "treaty"} else ".")
     notes = []
@@ -421,6 +425,6 @@ def format_reference(source_type: str, fields: dict, first_use: bool = True) -> 
         "in_text_narrative_html": cit["narrative"],
         "in_text_narrative": to_plain(cit["narrative"]),
         "list_heading": heading,
-        "missing_fields": missing_fields(t, f),
+        "missing_fields": missing,
         "notes": notes,
     }
