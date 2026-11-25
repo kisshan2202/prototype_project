@@ -76,3 +76,33 @@ def test_slow_site_hits_total_fetch_deadline(monkeypatch):
     monkeypatch.setattr(tools, "FETCH_DEADLINE", 0.2)
     out = asyncio.run(tools.fetch_source("https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9120058"))
     assert "too long" in out["error"] and "DOI" in out["error"]
+
+
+class _Ctx:
+    def __init__(self, state=None):
+        from types import SimpleNamespace
+        self.state = state or {}
+        self.actions = SimpleNamespace(skip_summarization=False)
+
+
+def test_blank_publisher_is_filled_from_site_name_and_flagged():
+    ctx = _Ctx({"site_name_hint": "amazee.io"})
+    r = tools.format_reference("social_media", {
+        "authors": [{"surname": "Karlsberger", "initials": "F"}], "year": "2023",
+        "title": "Open source companies: navigating challenges", "day_month": "14 November",
+        "viewed": "25 November 2026", "url": "https://www.amazee.io/blog/post/x"}, tool_context=ctx)
+    assert "challenges</i>, amazee.io, 14 November, viewed" in r["reference_html"]
+    assert any("taken from the website's name" in n for n in r["notes"])
+
+
+def test_model_supplied_publisher_is_not_overridden():
+    ctx = _Ctx({"site_name_hint": "amazee.io"})
+    r = tools.format_reference("webpage", {"authors": [{"organisation": "Acme"}], "year": "2020", "title": "T",
+                                           "publisher": "Acme Corp", "url": "https://x.org"}, tool_context=ctx)
+    assert "Acme Corp" in r["reference_text"] and "amazee" not in r["reference_text"]
+    assert not any("website's name" in n for n in r["notes"])
+
+
+def test_no_hint_means_no_change():
+    r = tools.format_reference("webpage", {"title": "T", "year": "2020", "url": "https://x.org"}, tool_context=_Ctx())
+    assert "publisher" in r["missing_fields"]
