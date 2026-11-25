@@ -7,6 +7,7 @@ A small static web page prototype presenting basic information about **Kaplan Bu
 | File | Description |
 | --- | --- |
 | `index.html` | Single-page, self-contained site (HTML + inline CSS, no dependencies) |
+| `dashboard.html` | Colourful student dashboard (sample data): sortable-looking table, search/filters, click-through profiles with skills charts, 5 themes |
 | `README.md` | Project documentation (this file) |
 
 ## Getting started
