@@ -1,0 +1,40 @@
+name: Deploy referencer to Cloud Run
+
+# Deploys on every push to main that touches kbs-referencer/, or manually.
+# One-time GCP setup (Workload Identity Federation, so no JSON key is stored in GitHub)
+# is described in kbs-referencer/README.md.
+on:
+  push:
+    branches: [main]
+    paths: ["kbs-referencer/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # needed for Workload Identity Federation
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SERVICE: kbs-referencer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ vars.GCP_REGION }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          source: kbs-referencer
+          env_vars: |
+            GOOGLE_GENAI_USE_VERTEXAI=TRUE
+            GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}
+            GOOGLE_CLOUD_LOCATION=${{ vars.GCP_REGION }}
+            REFERENCER_MODEL=${{ vars.REFERENCER_MODEL || 'gemini-3.5-flash' }}
+          flags: --no-allow-unauthenticated --max-instances=3 --memory=1Gi
