@@ -65,3 +65,14 @@ def test_site_name_hint_prefers_og_site_name_then_domain():
     assert tools._html_summary("https://www.amazee.io/blog/x", with_og, "utf-8")["site_name_hint"] == "Amazee.io Ltd"
     plain = b"<html><head><title>t</title></head><body>" + b"x " * 200 + b"</body></html>"
     assert tools._html_summary("https://www.amazee.io/blog/x", plain, "utf-8")["site_name_hint"] == "amazee.io"
+
+
+def test_slow_site_hits_total_fetch_deadline(monkeypatch):
+    async def slow(url):
+        await asyncio.sleep(5)
+        return {"kind": "html"}
+
+    monkeypatch.setattr(tools, "_fetch", slow)
+    monkeypatch.setattr(tools, "FETCH_DEADLINE", 0.2)
+    out = asyncio.run(tools.fetch_source("https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9120058"))
+    assert "too long" in out["error"] and "DOI" in out["error"]
