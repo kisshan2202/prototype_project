@@ -89,6 +89,16 @@ Public use costs money (every request is a Gemini call) and the fetch tool visit
 - To go back to private, set `PUBLIC_ACCESS` to `false`, redeploy, and remove `allUsers` from the service
   if it is still listed under *Security* in the Cloud Run console.
 
+## Speed and quota
+
+- A reference takes two Gemini calls (fetch the page, then format). DOI metadata from Crossref is added
+  inside the fetch step. The formatter's result is returned directly, with no final summary call.
+- `REFERENCER_THINKING` (default `LOW`; `MINIMAL`, `MEDIUM`, `HIGH` or `OFF`) sets Gemini's thinking effort.
+- 429/503 errors are retried up to 4 times with backoff. If users still see "quota reached", request a
+  higher quota for the model in the GCP console (IAM & Admin -> Quotas, filter on the model name).
+- The first request after idle time is slower (container cold start). `--cpu-boost` shortens it; for no
+  cold starts, set the repository variable `MIN_INSTANCES` to `1` (small always-on cost).
+
 ## Limits to know about
 
 - Paywalled, login-only or JavaScript-rendered pages may not expose metadata; the app says so rather than guessing.
