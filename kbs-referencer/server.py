@@ -8,7 +8,7 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -16,6 +16,7 @@ from google.genai import types
 from pydantic import BaseModel, HttpUrl
 
 from referencer.agent import root_agent
+from referencer.ratelimit import RateLimiter
 
 APP_NAME = "kbs_referencer"
 WEB = Path(__file__).parent / "web"
@@ -23,19 +24,29 @@ WEB = Path(__file__).parent / "web"
 app = FastAPI(title="KBS Harvard Referencer")
 sessions = InMemorySessionService()
 runner = Runner(app_name=APP_NAME, agent=root_agent, session_service=sessions)
+# Every request costs a Gemini call: cap each visitor (0 turns the cap off).
+limiter = RateLimiter(int(os.getenv("RATE_LIMIT_PER_HOUR", "20")))
 
 
 class Req(BaseModel):
     url: HttpUrl
 
 
-@app.get("/healthz")
-def healthz():
+def client_ip(request: Request) -> str:
+    # Cloud Run appends the real client address last; earlier entries can be forged.
+    xff = request.headers.get("x-forwarded-for", "")
+    return xff.split(",")[-1].strip() if xff else (request.client.host if request.client else "unknown")
+
+
+@app.get("/health")  # note: Cloud Run reserves /healthz, so it never reaches the app
+def health():
     return {"ok": True, "model": root_agent.model}
 
 
 @app.post("/api/reference")
-async def reference(req: Req):
+async def reference(req: Req, request: Request):
+    if not limiter.allow(client_ip(request)):
+        raise HTTPException(429, "Too many requests from your connection. Please try again later.")
     sid = uuid.uuid4().hex  # one throwaway session per request: no student data is retained
     await sessions.create_session(app_name=APP_NAME, user_id="web", session_id=sid)
     msg = types.Content(role="user", parts=[types.Part(text=f"Create a reference for this URL: {req.url}")])

@@ -78,9 +78,16 @@ Some newer Gemini models are served only from the `global` location, not regiona
 `global` works, add a `GEMINI_LOCATION` variable set to `global`. Cloud Run itself stays in `GCP_REGION`.
 Merging to `main` runs the tests (`referencer-ci.yml`) and deploys (`referencer-deploy.yml`).
 
-The service deploys with `--no-allow-unauthenticated`, so only people you grant `roles/run.invoker` can
-open it. To make it public for students, add a login layer (e.g. IAP) first, because every request
-costs a Gemini call and the fetch tool visits arbitrary URLs.
+By default the service deploys private (`--no-allow-unauthenticated`): only people you grant
+`roles/run.invoker` can open it. For a public link, add the repository variable `PUBLIC_ACCESS` = `true`
+and redeploy; the page is then at the service's `https://...run.app` address.
+
+Public use costs money (every request is a Gemini call) and the fetch tool visits arbitrary URLs, so:
+- Each visitor is limited to `RATE_LIMIT_PER_HOUR` requests (default 20, in memory per instance).
+- The service is capped at 3 instances. Set a billing budget alert in GCP.
+- The fetch tool refuses private/internal addresses (SSRF guard).
+- To go back to private, set `PUBLIC_ACCESS` to `false`, redeploy, and remove `allUsers` from the service
+  if it is still listed under *Security* in the Cloud Run console.
 
 ## Limits to know about
 
