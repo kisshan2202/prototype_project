@@ -118,3 +118,12 @@ def test_html_has_italics_and_escapes():
     r = format_reference("book", dict(authors=P([("A", "B")]), year="2020", title="R&D <basics>", publisher="P"))
     assert "<i>R&amp;D &lt;basics&gt;</i>" in r["reference_html"]
     assert r["reference_text"] == "A, B 2020, R&D <basics>, P."
+
+
+def test_missing_title_shows_placeholder_not_empty_quotes():
+    r = format_reference("journal_article", dict(
+        authors=P([("Tu", "H"), ("Xia", "Y"), ("Tse", "CK"), ("Chen", "X")]), year="2020",
+        container="IEEE Access", volume="8", pages="114876-114883"))
+    assert "‘’" not in r["reference_text"]
+    assert "[title not found]" in r["reference_text"]
+    assert "title" in r["missing_fields"]
