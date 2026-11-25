@@ -58,3 +58,10 @@ def test_blocked_page_without_doi_returns_error(monkeypatch):
 
     monkeypatch.setattr(tools, "_fetch", blocked)
     assert "error" in asyncio.run(tools.fetch_source("https://ieeexplore.ieee.org/abstract/document/7371499"))
+
+
+def test_site_name_hint_prefers_og_site_name_then_domain():
+    with_og = b'<html><head><meta property="og:site_name" content="Amazee.io Ltd"><title>t</title></head><body>' + b"x " * 200 + b"</body></html>"
+    assert tools._html_summary("https://www.amazee.io/blog/x", with_og, "utf-8")["site_name_hint"] == "Amazee.io Ltd"
+    plain = b"<html><head><title>t</title></head><body>" + b"x " * 200 + b"</body></html>"
+    assert tools._html_summary("https://www.amazee.io/blog/x", plain, "utf-8")["site_name_hint"] == "amazee.io"

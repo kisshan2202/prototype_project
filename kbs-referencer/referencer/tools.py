@@ -43,6 +43,12 @@ def _find_doi(candidates: list[str], url: str) -> str | None:
     return None
 
 
+def _site_from_domain(url: str) -> str:
+    """'https://www.amazee.io/blog/x' -> 'amazee.io' (a last-resort publisher hint)."""
+    host = (urlparse(url).hostname or "").lower()
+    return host[4:] if host.startswith("www.") else host
+
+
 def _html_summary(url: str, raw: bytes, encoding: str | None) -> dict:
     soup = BeautifulSoup(raw.decode(encoding or "utf-8", errors="replace"), "html.parser")
     meta: dict[str, list[str]] = {}
@@ -74,6 +80,8 @@ def _html_summary(url: str, raw: bytes, encoding: str | None) -> dict:
         "meta": meta,
         "json_ld": json.dumps(ld)[:6000] if ld else None,
         "canonical_url": canonical.get("href") if canonical else None,
+        "site_name_hint": (meta.get("og:site_name") or meta.get("publisher")
+                           or [_site_from_domain(url)])[0],
         "copyright_year_hint": footer_hint,
         "doi_hint": _find_doi(meta.get("citation_doi", []) + meta.get("dc.identifier", []), url),
         "text_excerpt": text[:7000],
