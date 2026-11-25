@@ -109,6 +109,7 @@ def _pdf_summary(raw: bytes) -> dict:
     }
 
 
+NEEDS_HOST = {"webpage", "social_media", "video", "audio", "report", "image", "dataset"}
 FETCH_DEADLINE = 30  # seconds for the whole fetch (page download + Crossref)
 BLOCKED_MSG = ("This site blocks automated access, so the page could not be read. Paste the article's "
                "DOI link (https://doi.org/...) or a direct link to the PDF instead.")
@@ -207,7 +208,7 @@ async def lookup_doi(doi: str) -> dict:
     }
 
 
-async def fetch_source(url: str) -> dict:
+async def fetch_source(url: str, tool_context: ToolContext | None = None) -> dict:
     """Download a web page or PDF and return its text and citation metadata.
 
     Args:
@@ -230,6 +231,9 @@ async def fetch_source(url: str) -> dict:
             if "error" not in cr:
                 return {"kind": "crossref_only", "final_url": url, "doi_hint": doi, "crossref": cr,
                         "note": "The page could not be read; details come from Crossref only."}
+    if tool_context is not None and out.get("site_name_hint"):
+        # Remembered for format_reference, which fills a blank publisher/host from it.
+        tool_context.state["site_name_hint"] = out["site_name_hint"]
     return out
 
 
@@ -257,10 +261,19 @@ def format_reference(source_type: str, fields: dict, first_use: bool = True,
     """
     if source_type not in SOURCE_TYPES:
         return {"error": f"Unknown source_type {source_type!r}. Use one of {sorted(SOURCE_TYPES)}."}
+    fields = dict(fields or {})
+    filled_publisher = False
+    if source_type in NEEDS_HOST and not str(fields.get("publisher") or "").strip() and tool_context is not None:
+        hint = tool_context.state.get("site_name_hint")
+        if hint:  # don't depend on the model remembering the publisher/host
+            fields["publisher"], filled_publisher = hint, True
     try:
         result = _format_reference(source_type, fields, first_use)
     except KeyError as exc:
         return {"error": f"Missing required field {exc} for {source_type}."}
+    if filled_publisher:
+        result["notes"].append(f"Publisher/host '{fields['publisher']}' was taken from the website's name. "
+                               "Check it is the organisation that publishes the page.")
     if tool_context is not None:
         tool_context.actions.skip_summarization = True  # the result IS the answer: no extra model call
     return result
