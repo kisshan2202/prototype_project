@@ -6,10 +6,19 @@ import os
 from pathlib import Path
 
 from google.adk.agents import Agent
+from google.genai import types
 
-from .tools import fetch_source, format_reference, lookup_doi
+from .tools import fetch_source, format_reference
 
 MODEL = os.getenv("REFERENCER_MODEL", "gemini-3.5-flash")
+# Extraction is easy work: keep thinking low (faster, cheaper) and retry quota/overload errors.
+THINKING = os.getenv("REFERENCER_THINKING", "LOW").upper()
+GEN_CONFIG = types.GenerateContentConfig(
+    temperature=0,
+    thinking_config=types.ThinkingConfig(thinking_level=THINKING) if THINKING != "OFF" else None,
+    http_options=types.HttpOptions(retry_options=types.HttpRetryOptions(
+        attempts=4, initial_delay=2.0, max_delay=20.0, http_status_codes=[429, 503])),
+)
 RULES = (Path(__file__).resolve().parent.parent / "guide" / "kaplan_harvard_rules.md").read_text()
 
 INSTRUCTION = f"""You are the Kaplan Business School referencing assistant. A student gives you a URL
@@ -19,7 +28,7 @@ Kaplan Harvard style.
 Workflow:
 1. Call fetch_source(url). If it returns an error, say so plainly and suggest what to try
    (DOI link, direct PDF link, or copy the details manually). Do not guess a reference.
-2. If a DOI is present (doi_hint or citation_doi), call lookup_doi and prefer its authors, title,
+2. If the result has a 'crossref' entry (looked up from the page's DOI), prefer its authors, title,
    journal, volume, issue, pages and year. Use page metadata (citation_*, dc.*, JSON-LD) next,
    then page text.
 3. Decide the source_type that matches the guide (journal_article, book, report, news_article,
@@ -34,10 +43,9 @@ Workflow:
    - Year: publication or copyright year. Pages as '255-261'.
    - Do not set 'viewed'; today's date is added automatically.
    - Always pass the URL the student gave (or the DOI URL) as 'url' for online sources.
-5. Call format_reference exactly once with source_type and fields.
-6. Reply briefly: the source type you chose, the reference exactly as returned in reference_text,
-   the parenthetical in-text citation, and any missing_fields / notes the student should check.
-   Never rewrite or "improve" the formatter's output.
+5. Call format_reference exactly once with source_type and fields. Its result is shown to the
+   student directly, so write no reply afterwards. Never rewrite or "improve" its output.
+   - For conference papers include the conference location in 'location' when the page gives it.
 
 Reference rules (Kaplan Harvard Style Guide v4.0):
 {RULES}
@@ -48,5 +56,6 @@ root_agent = Agent(
     model=MODEL,
     description="Creates Kaplan Harvard references from a URL.",
     instruction=INSTRUCTION,
-    tools=[fetch_source, lookup_doi, format_reference],
+    tools=[fetch_source, format_reference],
+    generate_content_config=GEN_CONFIG,
 )

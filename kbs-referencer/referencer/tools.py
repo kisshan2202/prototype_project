@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from google.adk.tools import ToolContext
 
 from .formatters import SOURCE_TYPES, format_reference as _format_reference
 
@@ -133,6 +134,10 @@ async def fetch_source(url: str) -> dict:
         else:
             return {"error": f"Unsupported content type: {ctype or 'unknown'}."}
         out["final_url"] = final
+        if out.get("doi_hint"):  # authoritative metadata now, so the model needs no extra round trip
+            cr = await lookup_doi(out["doi_hint"])
+            if "error" not in cr:
+                out["crossref"] = cr
         return out
     except Exception as exc:  # the agent reads this and explains it to the user
         return {"error": f"Could not fetch the page: {exc}"}
@@ -151,7 +156,7 @@ async def lookup_doi(doi: str) -> dict:
     """
     doi = re.sub(r"^https?://(dx\.)?doi\.org/", "", doi.strip(), flags=re.I)
     try:
-        async with httpx.AsyncClient(timeout=15, headers={"User-Agent": UA}) as c:
+        async with httpx.AsyncClient(timeout=8, headers={"User-Agent": UA}) as c:
             r = await c.get(f"https://api.crossref.org/works/{doi}")
         if r.status_code != 200:
             return {"error": f"Crossref has no record for DOI {doi} (HTTP {r.status_code})."}
@@ -184,7 +189,8 @@ async def lookup_doi(doi: str) -> dict:
 
 
 # ----------------------------------------------------------------- format_reference
-def format_reference(source_type: str, fields: dict, first_use: bool = True) -> dict:
+def format_reference(source_type: str, fields: dict, first_use: bool = True,
+                     tool_context: ToolContext | None = None) -> dict:
     """Format a source in Kaplan Harvard style. Call this once you have extracted the fields.
 
     Args:
@@ -207,6 +213,9 @@ def format_reference(source_type: str, fields: dict, first_use: bool = True) -> 
     if source_type not in SOURCE_TYPES:
         return {"error": f"Unknown source_type {source_type!r}. Use one of {sorted(SOURCE_TYPES)}."}
     try:
-        return _format_reference(source_type, fields, first_use)
+        result = _format_reference(source_type, fields, first_use)
     except KeyError as exc:
         return {"error": f"Missing required field {exc} for {source_type}."}
+    if tool_context is not None:
+        tool_context.actions.skip_summarization = True  # the result IS the answer: no extra model call
+    return result

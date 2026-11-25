@@ -66,6 +66,9 @@ async def reference(req: Req, request: Request):
             if event.is_final_response() and event.content and event.content.parts:
                 final_text = "".join(p.text or "" for p in event.content.parts)
     except Exception as exc:  # model/quota/credential problems
+        if "RESOURCE_EXHAUSTED" in str(exc) or "429" in str(exc)[:200]:
+            raise HTTPException(503, "The AI service is busy right now (quota reached). "
+                                     "Please wait a minute and try again.") from exc
         raise HTTPException(502, f"The AI model call failed: {exc}") from exc
     finally:
         await sessions.delete_session(app_name=APP_NAME, user_id="web", session_id=sid)
