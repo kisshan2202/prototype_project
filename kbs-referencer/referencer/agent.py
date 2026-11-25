@@ -44,6 +44,10 @@ Workflow:
      'Title', the h1, then the first lines of the text (for a PDF, the large heading at the top
      of page 1, above the author names). Only leave it out if it is truly not on the source.
    - Year: publication or copyright year. Pages as '255-261'.
+   - Publisher / host (webpages, blogs, social posts, videos, reports): use the name of the person or
+     organisation that publishes the site. Take it from, in order: a publisher meta tag, og:site_name,
+     the copyright line, then 'site_name_hint' (derived from the domain). A blog on a company site is
+     published by that company (e.g. www.amazee.io -> amazee.io). Do not leave it out for these types.
    - Do not set 'viewed'; today's date is added automatically.
    - Always pass the URL the student gave (or the DOI URL) as 'url' for online sources.
 5. Call format_reference exactly once with source_type and fields. Its result is shown to the

@@ -1,6 +1,7 @@
 """Tools the agent can call: fetch a URL, look up a DOI, format a reference."""
 from __future__ import annotations
 
+import asyncio
 import io
 import ipaddress
 import json
@@ -43,6 +44,12 @@ def _find_doi(candidates: list[str], url: str) -> str | None:
     return None
 
 
+def _site_from_domain(url: str) -> str:
+    """'https://www.amazee.io/blog/x' -> 'amazee.io' (a last-resort publisher hint)."""
+    host = (urlparse(url).hostname or "").lower()
+    return host[4:] if host.startswith("www.") else host
+
+
 def _html_summary(url: str, raw: bytes, encoding: str | None) -> dict:
     soup = BeautifulSoup(raw.decode(encoding or "utf-8", errors="replace"), "html.parser")
     meta: dict[str, list[str]] = {}
@@ -74,6 +81,8 @@ def _html_summary(url: str, raw: bytes, encoding: str | None) -> dict:
         "meta": meta,
         "json_ld": json.dumps(ld)[:6000] if ld else None,
         "canonical_url": canonical.get("href") if canonical else None,
+        "site_name_hint": (meta.get("og:site_name") or meta.get("publisher")
+                           or [_site_from_domain(url)])[0],
         "copyright_year_hint": footer_hint,
         "doi_hint": _find_doi(meta.get("citation_doi", []) + meta.get("dc.identifier", []), url),
         "text_excerpt": text[:7000],
@@ -100,6 +109,7 @@ def _pdf_summary(raw: bytes) -> dict:
     }
 
 
+FETCH_DEADLINE = 30  # seconds for the whole fetch (page download + Crossref)
 BLOCKED_MSG = ("This site blocks automated access, so the page could not be read. Paste the article's "
                "DOI link (https://doi.org/...) or a direct link to the PDF instead.")
 
@@ -209,7 +219,10 @@ async def fetch_source(url: str) -> dict:
         final URL. On failure: {"error": "..."}. If the page is blocked but the URL contains
         a DOI, the result has kind 'crossref_only' with the Crossref record.
     """
-    out = await _fetch(url)
+    try:  # hard total limit: the per-read timeout alone lets a slow-drip site hold us for minutes
+        out = await asyncio.wait_for(_fetch(url), FETCH_DEADLINE)
+    except asyncio.TimeoutError:
+        out = {"error": "The site took too long to respond. " + BLOCKED_MSG}
     if "error" in out:
         doi = _find_doi([], url)
         if doi:  # page unreadable, but the link itself names the article
