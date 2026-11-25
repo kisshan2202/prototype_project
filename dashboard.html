@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kaplan Student Dashboard</title>
+  <style>
+    /* ----- Themes (set via data-theme on <html>) ----- */
+    :root, [data-theme="candy"] {
+      --primary: #7c4dff; --secondary: #ff4d8d; --accent: #ff9f1c;
+      --h1: #7c4dff; --h2: #ff4d8d; --h3: #ff9f1c;
+      --c1: #7c4dff; --c2: #ff4d8d; --c3: #ff9f1c; --c4: #00b8a9; --c5: #3a86ff; --c6: #ef476f;
+      --text: #22223b; --muted: #6b6f85; --bg: #f4f2ff; --card: #ffffff;
+      --soft: #eee9ff; --line: #d9d3ff; --stripe: #faf8ff; --hover: #ece6ff; --avatar: #b9a8ff;
+      --shadow: rgba(80, 60, 160, .1); --on-primary: #ffffff;
+    }
+    [data-theme="ocean"] {
+      --primary: #0077b6; --secondary: #00b4d8; --accent: #48cae4;
+      --h1: #03045e; --h2: #0077b6; --h3: #00b4d8;
+      --c1: #0077b6; --c2: #00b4d8; --c3: #2ec4b6; --c4: #3a86ff; --c5: #5e60ce; --c6: #06d6a0;
+      --text: #0b2545; --muted: #5a6f87; --bg: #eaf6fb; --card: #ffffff;
+      --soft: #daf0f8; --line: #b7e0f0; --stripe: #f4fbfe; --hover: #d2edf7; --avatar: #8fd3ee;
+      --shadow: rgba(0, 90, 140, .12); --on-primary: #ffffff;
+    }
+    [data-theme="sunset"] {
+      --primary: #e63946; --secondary: #f77f00; --accent: #fcbf49;
+      --h1: #d62828; --h2: #f77f00; --h3: #fcbf49;
+      --c1: #e63946; --c2: #f77f00; --c3: #fcbf49; --c4: #9d4edd; --c5: #ff6b9d; --c6: #2a9d8f;
+      --text: #3b1f1f; --muted: #7d6666; --bg: #fff4ea; --card: #ffffff;
+      --soft: #ffe8d6; --line: #ffd2b0; --stripe: #fff9f3; --hover: #ffe2c9; --avatar: #ffb88c;
+      --shadow: rgba(180, 70, 20, .12); --on-primary: #ffffff;
+    }
+    [data-theme="forest"] {
+      --primary: #2d6a4f; --secondary: #52b788; --accent: #f9c74f;
+      --h1: #1b4332; --h2: #2d6a4f; --h3: #74c69d;
+      --c1: #2d6a4f; --c2: #52b788; --c3: #f9c74f; --c4: #f8961e; --c5: #43aa8b; --c6: #90be6d;
+      --text: #1b2e24; --muted: #5d7266; --bg: #eef7f0; --card: #ffffff;
+      --soft: #dcefe2; --line: #bfe0cb; --stripe: #f6fbf7; --hover: #d3ebdb; --avatar: #95d5b2;
+      --shadow: rgba(30, 90, 60, .12); --on-primary: #ffffff;
+    }
+    [data-theme="midnight"] {
+      --primary: #8b5cf6; --secondary: #22d3ee; --accent: #f472b6;
+      --h1: #1e1b4b; --h2: #4c1d95; --h3: #0e7490;
+      --c1: #8b5cf6; --c2: #22d3ee; --c3: #f472b6; --c4: #34d399; --c5: #fbbf24; --c6: #60a5fa;
+      --text: #e8e8f5; --muted: #a0a3c0; --bg: #12122a; --card: #1c1c3a;
+      --soft: #2a2a52; --line: #3a3a6a; --stripe: #202044; --hover: #2c2c58; --avatar: #5b4b9a;
+      --shadow: rgba(0, 0, 0, .4); --on-primary: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); transition: background .25s, color .25s; }
+    header {
+      background: linear-gradient(120deg, var(--h1), var(--h2) 55%, var(--h3));
+      color: #fff; padding: 1.6rem 1.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    header h1 { margin: 0; font-size: 1.7rem; }
+    .themes { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
+    .themes select { padding: .45rem .7rem; border-radius: 8px; border: 0; font-size: .9rem; background: rgba(255,255,255,.95); color: #22223b; cursor: pointer; }
+    .swatches { display: flex; gap: .35rem; }
+    .swatch { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 2px solid #fff; cursor: pointer; padding: 0; }
+    .swatch[aria-pressed="true"] { outline: 3px solid #fff; outline-offset: 2px; }
+    header p { margin: .2rem 0 0; opacity: .92; }
+    main { max-width: 72rem; margin: 0 auto; padding: 1.5rem; }
+    .hidden { display: none !important; }
+
+    /* summary tiles */
+    .tiles { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); margin-bottom: 1.2rem; }
+    .tile { border-radius: 14px; padding: 1rem 1.2rem; color: #fff; }
+    .tile b { display: block; font-size: 1.9rem; }
+    .t1 { background: var(--c1); } .t2 { background: var(--c2); } .t3 { background: var(--c4); } .t4 { background: var(--c3); }
+
+    /* table */
+    .toolbar { display: flex; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .toolbar input, .toolbar select { padding: .6rem .8rem; border: 2px solid var(--line); border-radius: 10px; font-size: .95rem; background: var(--card); color: var(--text); }
+    .toolbar input { flex: 1 1 14rem; }
+    .card { background: var(--card); border-radius: 14px; box-shadow: 0 2px 10px var(--shadow); overflow: hidden; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 52rem; }
+    th { background: var(--primary); color: var(--on-primary); text-align: left; padding: .75rem 1rem; font-size: .85rem; letter-spacing: .03em; }
+    td { padding: .7rem 1rem; border-bottom: 1px solid var(--soft); font-size: .93rem; }
+    tbody tr { cursor: pointer; transition: background .15s; }
+    tbody tr:nth-child(even) { background: var(--stripe); }
+    tbody tr:hover { background: var(--hover); }
+    .pill { display: inline-block; padding: .15rem .6rem; border-radius: 999px; font-size: .78rem; color: #fff; margin: .1rem .15rem .1rem 0; }
+    .empty { padding: 2rem; text-align: center; color: var(--muted); }
+
+    /* profile */
+    .back { background: var(--primary); color: var(--on-primary); border: 0; border-radius: 10px; padding: .55rem 1.1rem; font-size: .95rem; cursor: pointer; margin-bottom: 1rem; }
+    .back:hover { filter: brightness(1.12); }
+    .profile { display: grid; gap: 1.2rem; grid-template-columns: 18rem 1fr; }
+    @media (max-width: 760px) { .profile { grid-template-columns: 1fr; } }
+    .side { text-align: center; padding: 1.5rem 1.2rem; }
+    .avatar { width: 9rem; height: 9rem; border-radius: 50%; margin: 0 auto 1rem; border: 5px solid var(--secondary); background: var(--soft); display: block; }
+    .side h2 { margin: .2rem 0; }
+    .side .sub { color: var(--muted); margin-bottom: 1rem; }
+    dl { text-align: left; margin: 1rem 0 0; }
+    dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-top: .8rem; }
+    dd { margin: .1rem 0 0; font-weight: 600; word-break: break-word; }
+    .main-col { display: grid; gap: 1.2rem; }
+    .panel { padding: 1.3rem; }
+    .panel h3 { margin: 0 0 1rem; color: var(--primary); }
+    .skills { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); align-items: center; }
+    .bar { margin-bottom: .75rem; }
+    .bar span { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: .2rem; }
+    .track { background: var(--soft); border-radius: 999px; height: 10px; overflow: hidden; }
+    .fill { height: 100%; border-radius: 999px; }
+    footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 1rem 1rem 2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🎓 Kaplan Student Dashboard</h1>
+      <p>Prototype with sample data. Click a student to open their profile.</p>
+    </div>
+    <div class="themes" role="group" aria-label="Theme">
+      <span>Theme:</span>
+      <div class="swatches" id="swatches"></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LIST VIEW -->
+    <div id="listView">
+      <div class="tiles" id="tiles"></div>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search name, ID, email, country…">
+        <select id="countryFilter"><option value="">All nationalities</option></select>
+        <select id="courseFilter"><option value="">All courses</option></select>
+      </div>
+      <div class="card scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Kaplan ID</th><th>Name</th><th>Nationality</th><th>Email</th><th>Course</th><th>Campus</th><th>Preferences</th><th>Status</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty hidden">No students match your search.</div>
+      </div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="profileView" class="hidden">
+      <button class="back" id="backBtn">← Back to all students</button>
+      <div class="profile">
+        <div class="card side" id="side"></div>
+        <div class="main-col">
+          <div class="card panel">
+            <h3>Skills overview</h3>
+            <div class="skills">
+              <svg id="radar" viewBox="0 0 300 300" role="img" aria-label="Skills radar chart"></svg>
+              <div id="bars"></div>
+            </div>
+          </div>
+          <div class="card panel" id="about"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>All students, IDs and emails shown are made-up sample data.</footer>
+
+  <script>
+    // ----- Sample data (fictional) -----
+    const SKILLS = ["Communication", "Teamwork", "Analytics", "Leadership", "Creativity", "Tech"];
+    const COLORS = [1, 2, 3, 4, 5, 6].map(n => `var(--c${n})`);   // resolved per theme in CSS
+    const STUDENTS = [
+      { name: "Aarav Sharma",   country: "India",         flag: "🇮🇳", course: "Bachelor of Business", campus: "Sydney",    prefs: ["Online", "Evening"],    status: "Active",   skills: [78, 85, 90, 65, 60, 82], bio: "Enjoys data projects and leads the finance society." },
+      { name: "Mei Lin",        country: "China",         flag: "🇨🇳", course: "Master of Business Admin.", campus: "Melbourne", prefs: ["On campus", "Morning"], status: "Active",   skills: [70, 75, 92, 80, 55, 88], bio: "Focused on analytics and digital strategy." },
+      { name: "Sofia Martinez", country: "Colombia",      flag: "🇨🇴", course: "Diploma of Marketing", campus: "Brisbane",  prefs: ["Hybrid", "Evening"],    status: "Active",   skills: [92, 88, 60, 74, 90, 58], bio: "Creative storyteller with a passion for brand campaigns." },
+      { name: "James O'Connor", country: "Ireland",       flag: "🇮🇪", course: "Bachelor of Business", campus: "Perth",     prefs: ["On campus", "Morning"], status: "On leave", skills: [80, 90, 66, 85, 62, 55], bio: "Team captain, interested in project management." },
+      { name: "Fatima Al-Sayed",country: "UAE",           flag: "🇦🇪", course: "Master of Business Admin.", campus: "Sydney",    prefs: ["Online", "Weekend"],    status: "Active",   skills: [85, 78, 80, 92, 68, 70], bio: "Aspiring entrepreneur building a start-up." },
+      { name: "Lucas Silva",    country: "Brazil",        flag: "🇧🇷", course: "Diploma of IT",        campus: "Adelaide",  prefs: ["Hybrid", "Evening"],    status: "Active",   skills: [66, 72, 84, 58, 76, 95], bio: "Loves coding and building small web tools." },
+      { name: "Nguyen Thi Hoa", country: "Vietnam",       flag: "🇻🇳", course: "Bachelor of Accounting", campus: "Melbourne", prefs: ["On campus", "Morning"], status: "Active",   skills: [72, 80, 94, 62, 58, 74], bio: "Detail-oriented and top of the accounting cohort." },
+      { name: "Emma Johansson", country: "Sweden",        flag: "🇸🇪", course: "Diploma of Marketing", campus: "Sydney",    prefs: ["Online", "Weekend"],    status: "Graduated",skills: [88, 82, 64, 70, 93, 60], bio: "Now working in a digital agency." },
+      { name: "Kwame Mensah",   country: "Ghana",         flag: "🇬🇭", course: "Bachelor of Business", campus: "Brisbane",  prefs: ["On campus", "Evening"], status: "Active",   skills: [84, 86, 70, 90, 66, 62], bio: "Natural leader who runs the student mentoring group." },
+      { name: "Priya Nair",     country: "Sri Lanka",     flag: "🇱🇰", course: "Master of Business Admin.", campus: "Perth",     prefs: ["Hybrid", "Morning"],    status: "Active",   skills: [76, 74, 88, 82, 64, 80], bio: "Interested in supply-chain optimisation." }
+    ].map((s, i) => ({
+      ...s,
+      index: i + 1,
+      id: "KBS" + String(240100 + i * 7),
+      email: s.name.toLowerCase().replace(/[^a-z ]/g, "").replace(" ", ".") + "@students.example.com"
+    }));
+
+    const $ = id => document.getElementById(id);
+    const prefColor = p => COLORS[[...p].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
+    const statusColor = { "Active": "var(--c4)", "On leave": "var(--c3)", "Graduated": "var(--c5)" };
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    // ----- List view -----
+    function renderTiles() {
+      const countries = new Set(STUDENTS.map(s => s.country)).size;
+      const active = STUDENTS.filter(s => s.status === "Active").length;
+      const avg = Math.round(STUDENTS.flatMap(s => s.skills).reduce((a, b) => a + b, 0) / (STUDENTS.length * SKILLS.length));
+      $("tiles").innerHTML = [
+        ["t1", STUDENTS.length, "Students"], ["t2", countries, "Nationalities"],
+        ["t3", active, "Active"], ["t4", avg, "Avg. skill score"]
+      ].map(([c, n, l]) => `<div class="tile ${c}"><b>${n}</b>${l}</div>`).join("");
+    }
+
+    function fillFilters() {
+      [...new Set(STUDENTS.map(s => s.country))].sort().forEach(c => $("countryFilter").add(new Option(c, c)));
+      [...new Set(STUDENTS.map(s => s.course))].sort().forEach(c => $("courseFilter").add(new Option(c, c)));
+    }
+
+    function renderRows() {
+      const q = $("search").value.trim().toLowerCase();
+      const country = $("countryFilter").value, course = $("courseFilter").value;
+      const list = STUDENTS.filter(s =>
+        (!country || s.country === country) && (!course || s.course === course) &&
+        (!q || [s.name, s.id, s.email, s.country].some(v => v.toLowerCase().includes(q))));
+      $("rows").innerHTML = list.map(s => `
+        <tr data-id="${s.id}" tabindex="0">
+          <td>${s.index}</td><td><b>${s.id}</b></td><td>${esc(s.name)}</td>
+          <td>${s.flag} ${esc(s.country)}</td><td>${esc(s.email)}</td>
+          <td>${esc(s.course)}</td><td>${esc(s.campus)}</td>
+          <td>${s.prefs.map(p => `<span class="pill" style="background:${prefColor(p)}">${esc(p)}</span>`).join("")}</td>
+          <td><span class="pill" style="background:${statusColor[s.status]}">${s.status}</span></td>
+        </tr>`).join("");
+      $("empty").classList.toggle("hidden", list.length > 0);
+    }
+
+    // ----- Profile view -----
+    function radarSvg(values) {
+      const cx = 150, cy = 150, R = 105, n = values.length;
+      const pt = (i, r) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+      const poly = r => Array.from({ length: n }, (_, i) => pt(i, r).join(",")).join(" ");
+      let out = [25, 50, 75, 100].map(p => `<polygon points="${poly(R * p / 100)}" fill="none" style="stroke:var(--line)"/>`).join("");
+      out += SKILLS.map((s, i) => {
+        const [x, y] = pt(i, R), [lx, ly] = pt(i, R + 22);
+        return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" style="stroke:var(--line)"/>` +
+          `<text x="${lx}" y="${ly}" font-size="11" text-anchor="middle" dominant-baseline="middle" style="fill:var(--text)">${s}</text>`;
+      }).join("");
+      const data = values.map((v, i) => pt(i, R * v / 100).join(",")).join(" ");
+      out += `<polygon points="${data}" fill-opacity=".35" stroke-width="2.5" style="fill:var(--secondary);stroke:var(--secondary)"/>`;
+      out += values.map((v, i) => { const [x, y] = pt(i, R * v / 100); return `<circle cx="${x}" cy="${y}" r="4.5" style="fill:${COLORS[i]}"/>`; }).join("");
+      return out;
+    }
+
+    function showProfile(id) {
+      const s = STUDENTS.find(x => x.id === id);
+      if (!s) return showList();
+      $("side").innerHTML = `
+        <svg class="avatar" viewBox="0 0 100 100" role="img" aria-label="Photo placeholder">
+          <circle cx="50" cy="38" r="18" style="fill:var(--avatar)"/>
+          <path d="M14 98c0-22 16-36 36-36s36 14 36 36z" style="fill:var(--avatar)"/>
+        </svg>
+        <h2>${esc(s.name)}</h2>
+        <div class="sub">${s.flag} ${esc(s.country)}</div>
+        <span class="pill" style="background:${statusColor[s.status]}">${s.status}</span>
+        <dl>
+          <dt>Kaplan ID</dt><dd>${s.id}</dd>
+          <dt>Email</dt><dd>${esc(s.email)}</dd>
+          <dt>Student #</dt><dd>${s.index}</dd>
+        </dl>`;
+      $("radar").innerHTML = radarSvg(s.skills);
+      $("bars").innerHTML = SKILLS.map((k, i) => `
+        <div class="bar"><span><b>${k}</b><em>${s.skills[i]}%</em></span>
+        <div class="track"><div class="fill" style="width:${s.skills[i]}%;background:${COLORS[i]}"></div></div></div>`).join("");
+      $("about").innerHTML = `
+        <h3>About</h3>
+        <p>${esc(s.bio)}</p>
+        <dl>
+          <dt>Course</dt><dd>${esc(s.course)}</dd>
+          <dt>Campus</dt><dd>${esc(s.campus)}</dd>
+          <dt>Preferences</dt><dd>${s.prefs.map(p => `<span class="pill" style="background:${prefColor(p)}">${esc(p)}</span>`).join("")}</dd>
+        </dl>`;
+      $("listView").classList.add("hidden");
+      $("profileView").classList.remove("hidden");
+      window.scrollTo(0, 0);
+    }
+
+    function showList() {
+      $("profileView").classList.add("hidden");
+      $("listView").classList.remove("hidden");
+    }
+
+    // ----- Routing (hash based so back button works) -----
+    function route() {
+      const m = location.hash.match(/^#\/student\/(.+)$/);
+      m ? showProfile(decodeURIComponent(m[1])) : showList();
+    }
+    const open = tr => { if (tr && tr.dataset.id) location.hash = "#/student/" + tr.dataset.id; };
+    $("rows").addEventListener("click", e => open(e.target.closest("tr")));
+    $("rows").addEventListener("keydown", e => { if (e.key === "Enter") open(e.target.closest("tr")); });
+    $("backBtn").addEventListener("click", () => { location.hash = ""; });
+    ["search", "countryFilter", "courseFilter"].forEach(id => $(id).addEventListener("input", renderRows));
+    window.addEventListener("hashchange", route);
+
+    // ----- Themes -----
+    const THEMES = [
+      ["candy", "Candy", "#ff4d8d"], ["ocean", "Ocean", "#0077b6"], ["sunset", "Sunset", "#f77f00"],
+      ["forest", "Forest", "#2d6a4f"], ["midnight", "Midnight", "#8b5cf6"]
+    ];
+    function applyTheme(name) {
+      if (!THEMES.some(t => t[0] === name)) name = "candy";
+      document.documentElement.setAttribute("data-theme", name);
+      document.querySelectorAll(".swatch").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.theme === name)));
+      try { localStorage.setItem("kbs-theme", name); } catch (e) { /* storage unavailable */ }
+    }
+    $("swatches").innerHTML = THEMES.map(([id, label, c]) =>
+      `<button class="swatch" data-theme="${id}" title="${label}" aria-label="${label} theme" aria-pressed="false" style="background:${c}"></button>`).join("");
+    $("swatches").addEventListener("click", e => { const b = e.target.closest(".swatch"); if (b) applyTheme(b.dataset.theme); });
+    let savedTheme = "candy";
+    try { savedTheme = localStorage.getItem("kbs-theme") || "candy"; } catch (e) { /* ignore */ }
+    applyTheme(savedTheme);
+
+    renderTiles(); fillFilters(); renderRows(); route();
+  </script>
+</body>
+</html>
