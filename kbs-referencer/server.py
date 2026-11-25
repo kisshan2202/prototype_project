@@ -51,7 +51,7 @@ async def reference(req: Req, request: Request):
     await sessions.create_session(app_name=APP_NAME, user_id="web", session_id=sid)
     msg = types.Content(role="user", parts=[types.Part(text=f"Create a reference for this URL: {req.url}")])
 
-    result, error, final_text = None, None, ""
+    result, error, final_text, fetch_failed = None, None, "", False
     try:
         async for event in runner.run_async(user_id="web", session_id=sid, new_message=msg):
             for fr in event.get_function_responses():
@@ -62,7 +62,7 @@ async def reference(req: Req, request: Request):
                     elif isinstance(payload, dict):
                         error = payload["error"]
                 elif fr.name == "fetch_source" and fr.response and fr.response.get("error"):
-                    error = fr.response["error"]
+                    error, fetch_failed = fr.response["error"], True
             if event.is_final_response() and event.content and event.content.parts:
                 final_text = "".join(p.text or "" for p in event.content.parts)
     except Exception as exc:  # model/quota/credential problems
@@ -73,8 +73,12 @@ async def reference(req: Req, request: Request):
     finally:
         await sessions.delete_session(app_name=APP_NAME, user_id="web", session_id=sid)
 
+    if fetch_failed:  # the source was unreadable: any reference would be a guess
+        result = None
     if result is None:
-        raise HTTPException(422, error or final_text or "Could not build a reference from that URL.")
+        # Never show the model's chat-style reply here: this page has no chat to answer it.
+        raise HTTPException(422, error or "I couldn't read enough from that page to build a reference. "
+                                         "Try the article's DOI link (https://doi.org/...) or a direct PDF link.")
     return {**result, "url": str(req.url), "assistant_note": final_text}
 
 

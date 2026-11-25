@@ -100,16 +100,24 @@ def _pdf_summary(raw: bytes) -> dict:
     }
 
 
-async def fetch_source(url: str) -> dict:
-    """Download a web page or PDF and return its text and citation metadata.
+BLOCKED_MSG = ("This site blocks automated access, so the page could not be read. Paste the article's "
+               "DOI link (https://doi.org/...) or a direct link to the PDF instead.")
 
-    Args:
-        url: The public http(s) address of the source the student wants to reference.
 
-    Returns:
-        A dict with kind ('html' or 'pdf'), meta tags (citation_*, dc.*, og:*), JSON-LD,
-        a text excerpt, any DOI found, and the final URL. On failure: {"error": "..."}.
-    """
+def looks_blocked(summary: dict) -> bool:
+    """A 200 response that is an empty shell or an 'access denied' page, not the real article."""
+    if summary.get("kind") != "html":
+        return False
+    text = (summary.get("text_excerpt") or "").lower()
+    has_meta = any(k.startswith(("citation_", "dc.", "og:title", "prism.")) for k in summary.get("meta", {}))
+    if has_meta or summary.get("json_ld"):
+        return False
+    return len(text) < 300 or any(p in text[:600] for p in (
+        "access denied", "request blocked", "verify you are human", "captcha", "are you a robot",
+        "enable javascript", "unusual traffic"))
+
+
+async def _fetch(url: str) -> dict:
     try:
         _check_public_url(url)
         async with httpx.AsyncClient(follow_redirects=True, timeout=25, max_redirects=5,
@@ -117,8 +125,7 @@ async def fetch_source(url: str) -> dict:
                                      event_hooks={"request": [_guard]}) as client:
             async with client.stream("GET", url) as r:
                 if r.status_code >= 400:
-                    return {"error": f"The site returned HTTP {r.status_code}. It may block automated "
-                                     "access or need a login; try the DOI link or paste the PDF URL."}
+                    return {"error": f"The site returned HTTP {r.status_code}. " + BLOCKED_MSG}
                 chunks, size = [], 0
                 async for c in r.aiter_bytes():
                     size += len(c)
@@ -131,6 +138,8 @@ async def fetch_source(url: str) -> dict:
             out = _pdf_summary(raw)
         elif "html" in ctype.lower() or "xml" in ctype.lower() or "text" in ctype.lower():
             out = _html_summary(final, raw, enc)
+            if looks_blocked(out):
+                return {"error": BLOCKED_MSG}
         else:
             return {"error": f"Unsupported content type: {ctype or 'unknown'}."}
         out["final_url"] = final
@@ -186,6 +195,29 @@ async def lookup_doi(doi: str) -> dict:
         "publisher": m.get("publisher"),
         "url": m.get("URL"),
     }
+
+
+async def fetch_source(url: str) -> dict:
+    """Download a web page or PDF and return its text and citation metadata.
+
+    Args:
+        url: The public http(s) address of the source the student wants to reference.
+
+    Returns:
+        A dict with kind ('html' or 'pdf'), meta tags (citation_*, dc.*, og:*), JSON-LD,
+        a text excerpt, any DOI found, a 'crossref' entry when a DOI was found, and the
+        final URL. On failure: {"error": "..."}. If the page is blocked but the URL contains
+        a DOI, the result has kind 'crossref_only' with the Crossref record.
+    """
+    out = await _fetch(url)
+    if "error" in out:
+        doi = _find_doi([], url)
+        if doi:  # page unreadable, but the link itself names the article
+            cr = await lookup_doi(doi)
+            if "error" not in cr:
+                return {"kind": "crossref_only", "final_url": url, "doi_hint": doi, "crossref": cr,
+                        "note": "The page could not be read; details come from Crossref only."}
+    return out
 
 
 # ----------------------------------------------------------------- format_reference

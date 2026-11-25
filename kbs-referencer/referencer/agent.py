@@ -26,8 +26,8 @@ INSTRUCTION = f"""You are the Kaplan Business School referencing assistant. A st
 Kaplan Harvard style.
 
 Workflow:
-1. Call fetch_source(url). If it returns an error, say so plainly and suggest what to try
-   (DOI link, direct PDF link, or copy the details manually). Do not guess a reference.
+1. Call fetch_source(url). If it returns an error, stop: do not call format_reference and do not
+   guess a reference (the app shows the error to the student). Chat replies are never read.
 2. If the result has a 'crossref' entry (looked up from the page's DOI), prefer its authors, title,
    journal, volume, issue, pages and year. Use page metadata (citation_*, dc.*, JSON-LD) next,
    then page text.

@@ -28,3 +28,33 @@ def test_fetch_blocks_non_public(url):
 
 def test_format_tool_rejects_unknown_type():
     assert "error" in tools.format_reference("poem", {})
+
+
+def test_looks_blocked_detects_empty_and_denied_pages():
+    shell = tools._html_summary("https://x.org", b"<html><body><div id='root'></div></body></html>", "utf-8")
+    assert tools.looks_blocked(shell)
+    denied = tools._html_summary("https://x.org", b"<html><body>" + b"Access Denied. " * 40 + b"</body></html>", "utf-8")
+    assert tools.looks_blocked(denied)
+    real = tools._html_summary("https://x.org", HTML, "utf-8")
+    assert not tools.looks_blocked(real)
+
+
+def test_blocked_page_with_doi_in_url_falls_back_to_crossref(monkeypatch):
+    async def blocked(url):
+        return {"error": tools.BLOCKED_MSG}
+
+    async def crossref(doi):
+        return {"doi": doi, "title": "Deep learning", "authors": [{"surname": "LeCun", "initials": "Y"}]}
+
+    monkeypatch.setattr(tools, "_fetch", blocked)
+    monkeypatch.setattr(tools, "lookup_doi", crossref)
+    out = asyncio.run(tools.fetch_source("https://doi.org/10.1038/nature14539"))
+    assert out["kind"] == "crossref_only" and out["crossref"]["title"] == "Deep learning"
+
+
+def test_blocked_page_without_doi_returns_error(monkeypatch):
+    async def blocked(url):
+        return {"error": tools.BLOCKED_MSG}
+
+    monkeypatch.setattr(tools, "_fetch", blocked)
+    assert "error" in asyncio.run(tools.fetch_source("https://ieeexplore.ieee.org/abstract/document/7371499"))
